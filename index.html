@@ -89,12 +89,12 @@
         const uiMessage = document.getElementById('start-message');
         const scoreDisplay = document.getElementById('score-display');
 
-        // --- AUDIO NASTAVENÍ ---
+        // --- AUDIO ---
         const bgMusic = new Audio('geometrysong.mp3');
         bgMusic.loop = true;
         bgMusic.volume = 0.6;
 
-        // --- KONFIGURACE HRY ---
+        // --- GAME CONFIG ---
         let width, height;
         let gameSpeed = 7.5; 
         let score = 0;
@@ -295,7 +295,6 @@
         }
 
         function startGame() {
-            // Spuštění hudby
             bgMusic.currentTime = 0;
             bgMusic.play().catch(e => console.log("Audio play failed:", e));
 
@@ -315,28 +314,96 @@
         function spawnPattern() {
             if (spawnTimer > 0) { spawnTimer--; return; }
             const u = BLOCK_SIZE;
-            const jumpDuration = Math.abs(2 * JUMP_FORCE / GRAVITY);
-            const jumpDist = jumpDuration * gameSpeed;
-            const stairGap = jumpDist * 0.92;
+            
+            const jumpDuration = Math.abs(2 * JUMP_FORCE / GRAVITY); 
+            const flatJumpDist = jumpDuration * gameSpeed;
+            const stepUpDist = flatJumpDist * 0.90; 
+            const stepDownDist = flatJumpDist * 1.10;
+
             const r = Math.random();
             let p = { duration: 60, objs: [] };
 
-            if (r < 0.2) { 
-                p.objs.push({t: 'block', x: 0, y: 0}, {t: 'block', x: stairGap, y: 0}, {t: 'block', x: stairGap, y: 1}, {t: 'block', x: stairGap*2, y: 0}, {t: 'block', x: stairGap*2, y: 1}, {t: 'block', x: stairGap*2, y: 2});
-                p.duration = (stairGap*2 / gameSpeed) + 80;
-            } else if (r < 0.4) {
+            if (r < 0.12) { 
+                // 1. KRÁTKÉ SCHODY
+                p.objs.push(
+                    {t: 'block', x: 0, y: 0},
+                    {t: 'block', x: stepUpDist, y: 0}, {t: 'block', x: stepUpDist, y: 1},
+                    {t: 'block', x: stepUpDist*2, y: 0}, {t: 'block', x: stepUpDist*2, y: 1}, {t: 'block', x: stepUpDist*2, y: 2}
+                );
+                p.duration = (stepUpDist*2.5 / gameSpeed) + 50;
+
+            } else if (r < 0.22) {
+                // 2. DLOUHÉ SCHODY
+                for(let i=0; i<5; i++) {
+                    const cx = stepUpDist * i;
+                    for(let h=0; h<=i; h++) {
+                        p.objs.push({t: 'block', x: cx, y: h});
+                    }
+                }
+                p.duration = (stepUpDist*5.5 / gameSpeed) + 60;
+
+            } else if (r < 0.34) {
+                // 3. PYRAMIDA
+                let currentX = 0;
+                p.objs.push({t: 'block', x: currentX, y: 0});
+                currentX += stepUpDist;
+                p.objs.push({t: 'block', x: currentX, y: 0}, {t: 'block', x: currentX, y: 1});
+                currentX += stepUpDist;
+                p.objs.push({t: 'block', x: currentX, y: 0}, {t: 'block', x: currentX, y: 1}, {t: 'block', x: currentX, y: 2});
+                currentX += stepDownDist;
+                p.objs.push({t: 'block', x: currentX, y: 0}, {t: 'block', x: currentX, y: 1});
+                currentX += stepDownDist;
+                p.objs.push({t: 'block', x: currentX, y: 0});
+                p.duration = (currentX / gameSpeed) + 80;
+
+            } else if (r < 0.44) {
+                // 4. SCHODY S PASTÍ (OPRAVENO - Vrácena 3x2 plošina)
+                let currentX = 0;
+                for(let i=0; i<3; i++) {
+                    currentX = stepUpDist * i;
+                    for(let h=0; h<=i; h++) p.objs.push({t: 'block', x: currentX, y: h});
+                }
+                const landingX = currentX + flatJumpDist * 1.05; 
+                // 3 bloky na délku, 2 bloky na výšku (y=0 a y=1)
+                p.objs.push({t: 'block', x: landingX, y: 0, w: 3, h: 2}); 
+                p.objs.push({t: 'spike', x: currentX + (flatJumpDist/2), y: 0});
+                p.duration = (landingX / gameSpeed) + 110;
+
+            } else if (r < 0.52) { // PLOŠINA + OSTNY
                 const platWidth = 14; 
                 p.objs.push({t: 'block', x: 0, y: 0, w: platWidth, h: 1}, {t: 'spike', x: u * 3, y: 1}, {t: 'spike', x: u * 10, y: 1});
                 p.duration = (platWidth * u / gameSpeed) + 60;
-            } else if (r < 0.6) {
+
+            } else if (r < 0.60) { // PŘESKOK MEZI PLOŠINAMI
                 p.objs.push({t: 'platform', x: 0, y: 2, w: 5, h: 0.5}, {t: 'spike', x: u, y: 0}, {t: 'spike', x: u * 3, y: 0});
                 p.duration = (5 * u / gameSpeed) + 70;
-            } else if (r < 0.8) {
+
+            } else if (r < 0.68) { // PROHLUBEŇ
+                p.objs.push({t: 'spike', x: u * 2, y: 2.8}); 
+                p.objs.push({t: 'spike', x: u * 4.5, y: 0});
+                p.objs.push({t: 'spike', x: u * 5.5, y: 0});
+                p.duration = 140;
+
+            } else if (r < 0.76) { 
+                // 5. TROJITÝ OSTEN
+                p.objs.push({t: 'spike', x: 0, y: 0}, {t: 'spike', x: u, y: 0}, {t: 'spike', x: u*2, y: 0});
+                p.duration = 130;
+
+            } else if (r < 0.84) { 
+                // 6. OBŘÍ OSTEN
+                p.objs.push({t: 'spike', x: 0, y: 0, w: 1.5, h: 1.5});
+                p.duration = 110;
+
+            } else if (r < 0.92) {
+                // 7. DRAČÍ ZUBY
+                for(let i=0; i<5; i++) {
+                    p.objs.push({t: 'spike', x: i * (u*0.8), y: 0, w: 0.5, h: 0.6});
+                }
+                p.duration = 150;
+
+            } else { // JEDNODUCHÝ OSTEN
                 p.objs.push({t: 'spike', x: 0, y: 0}, {t: 'spike', x: u, y: 0});
                 p.duration = 100;
-            } else {
-                p.objs.push({t: 'spike', x: 0, y: 0});
-                p.duration = 80;
             }
 
             p.objs.forEach(o => obstacles.push(new Obstacle(o.t, o.x, o.y, o.w || 1, o.h || 1)));
@@ -345,34 +412,54 @@
 
         function checkCollisions() {
             if (!player || player.isDead) return;
+            
+            // Kolize s podlahou
             if (player.y + player.size >= height - GROUND_Y_DEFAULT) {
                 player.y = height - GROUND_Y_DEFAULT - player.size;
                 player.dy = 0; player.isGrounded = true;
                 if (isHoldingJump) player.jump();
             }
-            const pHit = { left: player.x + 5, right: player.x + player.size - 5, top: player.y + 5, bottom: player.y + player.size };
+
+            const pHit = { 
+                left: player.x + 5, 
+                right: player.x + player.size - 5, 
+                top: player.y + 5, 
+                bottom: player.y + player.size 
+            };
+
             for (let obs of obstacles) {
-                const oHit = { left: obs.x, right: obs.x + obs.w, top: obs.y, bottom: obs.y + obs.h };
+                const oHit = { 
+                    left: obs.x, 
+                    right: obs.x + obs.w, 
+                    top: obs.y, 
+                    bottom: obs.y + obs.h 
+                };
+
+                // AABB Kolize
                 if (pHit.right > oHit.left && pHit.left < oHit.right && pHit.bottom > oHit.top && pHit.top < oHit.bottom) {
                     if (obs.type === 'spike') { gameOver(); return; }
+                    
+                    // Kolize s blokem - tolerance pro dopad
                     const isFalling = player.dy >= 0;
-                    const prevBottom = player.y + player.size - player.dy;
-                    const isAbove = prevBottom <= oHit.top + 8;
+                    // Tolerance 15px pro dopad shora
+                    const isAbove = (player.y + player.size - player.dy) <= oHit.top + 15;
+
                     if (isFalling && isAbove) {
                         player.y = oHit.top - player.size;
-                        player.dy = 0; player.isGrounded = true;
+                        player.dy = 0; 
+                        player.isGrounded = true;
                         if (isHoldingJump) player.jump();
-                    } else { gameOver(); return; }
+                    } else { 
+                        // Náraz do boku
+                        gameOver(); return; 
+                    }
                 }
             }
         }
 
         function gameOver() {
             if (isGameOver) return;
-            
-            // Zastavení hudby
             bgMusic.pause();
-
             isRunning = false;
             isGameOver = true;
             player.isDead = true;
